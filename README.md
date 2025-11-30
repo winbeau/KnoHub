@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![KnoHub Logo](frontend/src/assets/logo.svg#20%)
+<img src="frontend/src/assets/logo.svg" alt="KnoHub Logo" width="200">
 
 **课程资料 · 技术文档 · 校园信息 — 一站式知识管理平台**
 
