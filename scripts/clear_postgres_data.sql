@@ -1,0 +1,6 @@
+-- 清空业务数据但保留表结构
+BEGIN;
+-- 先清空文件，再清空资源，重置自增 ID
+TRUNCATE TABLE file_items RESTART IDENTITY CASCADE;
+TRUNCATE TABLE resources RESTART IDENTITY CASCADE;
+COMMIT;

@@ -1,0 +1,75 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnpm-store/
+.venv/
+__pycache__/
+
+# =========================
+# Build Output
+# =========================
+# Frontend
+frontend/dist/
+frontend/.vite/
+
+# Backend
+backend/target/
+*.jar
+*.war
+*.class
+
+# =========================
+# Data & Uploads (Runtime)
+# =========================
+backend/data/
+backend/uploads/
+backend/postgres-data/
+backend/logs/
+*.log
+
+# =========================
+# IDE & Editor
+# =========================
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =========================
+# Environment & Secrets
+# =========================
+.env
+.env.local
+.env.*.local
+*.env
+.claude/
+
+# =========================
+# Testing & Coverage
+# =========================
+coverage/
+*.lcov
+.nyc_output/
+
+# =========================
+# OS Generated
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# =========================
+# Misc
+# =========================
+*.zip
+*.tar.gz
+*.rar
+KnoHub.zip

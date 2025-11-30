@@ -1,0 +1,99 @@
+@import "tailwindcss";
+@import "@fortawesome/fontawesome-free/css/all.min.css";
+
+/* 可选字体：将字体文件放到 public/fonts 下即可被 doc 预览加载 */
+@font-face {
+  font-family: "FZXiaoBiaoSong_GBK";
+  src: url("/fonts/FZXiaoBiaoSong_GBK.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "FangSong_GBK";
+  src: url("/fonts/FangSong_GBK.ttf") format("truetype");
+  font-display: swap;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0f9ff; /* sky-50 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bae6fd; /* sky-200 */
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7dd3fc; /* sky-300 */
+}
+
+.tree-line {
+  border-left: 1px dashed #cbd5e1;
+}
+
+/* 动画类 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 聊天气泡动画 */
+.message-enter-active,
+.message-leave-active {
+  transition: all 0.3s ease;
+}
+
+.message-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Markdown 样式适配 */
+.prose p {
+  margin-bottom: 0.5em;
+}
+
+.prose ul {
+  list-style-type: disc;
+  padding-left: 1.2em;
+  margin-bottom: 0.5em;
+}
+
+.prose ol {
+  list-style-type: decimal;
+  padding-left: 1.2em;
+  margin-bottom: 0.5em;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: #0284c7; /* sky-700 */
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 700;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+/* 动画延迟 */
+.delay-75 {
+  animation-delay: 75ms;
+}
+
+.delay-150 {
+  animation-delay: 150ms;
+}

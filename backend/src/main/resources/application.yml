@@ -1,0 +1,29 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: knohub-backend
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/knohub;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    database-platform: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
+
+# File storage configuration
+file:
+  upload-dir: ./uploads
+  deleted-suffix-format: "_deleted_%d"
