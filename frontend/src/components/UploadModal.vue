@@ -99,6 +99,8 @@ const addFiles = (files: File[]) => {
   errorMessage.value = ''
 }
 
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
 // 选择文件
 const handleFileSelect = (e: Event) => {
   const target = e.target as HTMLInputElement
@@ -107,6 +109,13 @@ const handleFileSelect = (e: Event) => {
   }
   // 重置 input 以便可以重复选择同一文件
   target.value = ''
+}
+
+const triggerFileDialog = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  // 如果点在重命名输入区域，不触发文件选择
+  if (target.closest('.rename-fields')) return
+  fileInputRef.value?.click()
 }
 
 // 拖拽文件
@@ -134,10 +143,15 @@ const removeFile = (index: number) => {
 }
 
 // 确认上传 - 真正执行上传
+const buildFinalName = (file: File, baseName: string, extension: string) => {
+  const cleaned = baseName.trim() || baseNameFromFile(file)
+  return extension ? `${cleaned}.${extension}` : cleaned
+}
+
 const confirmUpload = () => {
   if (!pendingFiles.value.length) return
   const filesToSend = pendingFiles.value.map(({ file, baseName, extension }) => {
-    const finalName = extension ? `${baseName.trim() || baseNameFromFile(file)}.${extension}` : (baseName.trim() || baseNameFromFile(file))
+    const finalName = buildFinalName(file, baseName, extension)
     if (finalName === file.name) return file
     return new File([file], finalName, { type: file.type })
   })
@@ -215,15 +229,8 @@ defineExpose({
           :class="pendingFiles.length ? 'border-sky-300 bg-sky-50/50' : 'border-slate-200 hover:border-sky-300 hover:bg-sky-50/30'"
           @dragover.prevent
           @drop.prevent="handleFileDrop"
+          @click="triggerFileDialog"
         >
-          <input
-            type="file"
-            @change="handleFileSelect"
-            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            multiple
-            accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.zip,.rar,.txt,.md"
-          />
-
           <!-- 未选择文件 -->
           <div v-if="!pendingFiles.length">
             <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-sky-100 flex items-center justify-center">
@@ -235,6 +242,7 @@ defineExpose({
 
           <!-- 已选择文件（缓存中） -->
           <div v-else class="space-y-3 text-left">
+            <p class="text-xs text-slate-500 font-medium">重命名后再上传：</p>
             <div
               v-for="(item, idx) in pendingFiles"
               :key="item.file.name + idx"
@@ -243,7 +251,7 @@ defineExpose({
               <div class="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <i class="fa-solid fa-file-lines"></i>
               </div>
-              <div class="flex-1 min-w-0 space-y-1">
+              <div class="flex-1 min-w-0 space-y-1 rename-fields">
                 <div class="flex items-center gap-2">
                   <input
                     v-model="item.baseName"
@@ -331,6 +339,14 @@ defineExpose({
 
         <!-- 操作按钮 -->
         <div class="mt-6 flex justify-end gap-3">
+          <input
+            ref="fileInputRef"
+            type="file"
+            class="hidden"
+            multiple
+            accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.zip,.rar,.txt,.md,.vhd"
+            @change="handleFileSelect"
+          />
           <button
             v-if="uploadState !== 'success'"
             @click="closeModal"

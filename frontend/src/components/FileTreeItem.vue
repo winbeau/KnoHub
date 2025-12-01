@@ -199,7 +199,7 @@ const iconClass = computed(() => {
   // Archives
   if (ext && ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'fa-file-zipper text-yellow-600'
   // Code
-  if (ext && ['js', 'ts', 'jsx', 'tsx', 'vue', 'py', 'java', 'cpp', 'c', 'h', 'css', 'scss', 'html'].includes(ext)) return 'fa-file-code text-emerald-500'
+  if (ext && ['js', 'ts', 'jsx', 'tsx', 'vue', 'py', 'java', 'cpp', 'c', 'h', 'css', 'scss', 'html', 'vhd'].includes(ext)) return 'fa-file-code text-emerald-500'
   // Text/Markdown
   if (ext && ['txt', 'md', 'markdown'].includes(ext)) return 'fa-file-lines text-slate-500'
   // Video

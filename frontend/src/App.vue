@@ -9,6 +9,7 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
 import DocPreview from './components/DocPreview.vue'
 import PdfPreview from './components/PdfPreview.vue'
 import ImagePreview from './components/ImagePreview.vue'
+import CodePreview from './components/CodePreview.vue'
 import knoHubLogo from './assets/knohub.svg'
 import { tabs } from './data'
 import { resourceApi, fileApi, metricsApi, API_ORIGIN } from './api'
@@ -73,6 +74,7 @@ const viewerRef = ref<
   | InstanceType<typeof DocPreview>
   | InstanceType<typeof PdfPreview>
   | InstanceType<typeof ImagePreview>
+  | InstanceType<typeof CodePreview>
   | null
 >(null)
 const docZoom = ref(100)
@@ -211,12 +213,14 @@ const getFileIcon = (type?: string) => {
   if (isImage(type)) return 'fa-solid fa-image'
   if (type === 'pdf') return 'fa-solid fa-file-pdf'
   if (type && ['doc', 'docx'].includes(type)) return 'fa-solid fa-file-word'
+  if (type && type.toLowerCase() === 'vhd') return 'fa-solid fa-file-code'
   return 'fa-solid fa-file'
 }
 
 const isDocFile = (type?: string) => type && ['doc', 'docx'].includes(type.toLowerCase())
 const isPdfFile = (type?: string) => type && type.toLowerCase() === 'pdf'
 const isZoomablePreview = (type?: string) => isDocFile(type) || isPdfFile(type) || isImage(type)
+const isVhdFile = (type?: string) => type && type.toLowerCase() === 'vhd'
 const isLegacyDocFile = (type?: string) => type && type.toLowerCase() === 'doc'
 const resolveFileUrl = (url?: string | null) => {
   if (!url) return ''
@@ -365,6 +369,27 @@ const zoomDocIn = () => {
 
 const zoomDocOut = () => {
   viewerRef.value?.zoomOut?.()
+}
+
+const vhdCopyState = reactive({
+  copied: false,
+  timer: null as number | null
+})
+
+const copyVhdContent = async () => {
+  const result = await viewerRef.value?.copyContent?.()
+  if (result === false) {
+    vhdCopyState.copied = false
+    return
+  }
+  vhdCopyState.copied = true
+  if (vhdCopyState.timer) {
+    clearTimeout(vhdCopyState.timer)
+  }
+  vhdCopyState.timer = window.setTimeout(() => {
+    vhdCopyState.copied = false
+    vhdCopyState.timer = null
+  }, 1500)
 }
 
 const handleUploadRequest = (resource: Resource) => {
@@ -980,6 +1005,27 @@ onMounted(() => {
                     </button>
                   </div>
                 </template>
+                <template v-else-if="isVhdFile(currentPreviewFile.type)">
+                  <div class="h-4 w-px bg-slate-200"></div>
+                  <button
+                    @click="copyVhdContent"
+                    :class="[
+                      'px-3 h-8 rounded-md border flex items-center gap-1 text-[11px] shadow-sm transition bg-white hover:bg-slate-50 text-slate-600',
+                      vhdCopyState.copied ? 'border-emerald-200' : 'border-slate-200'
+                    ]"
+                    title="复制内容"
+                  >
+                    <i
+                      :class="[
+                        vhdCopyState.copied ? 'fa-solid fa-check text-emerald-500' : 'fa-regular fa-copy text-sky-500',
+                        'transition'
+                      ]"
+                    ></i>
+                    <span class="font-medium" :class="vhdCopyState.copied ? 'text-emerald-600' : 'text-slate-700'">
+                      {{ vhdCopyState.copied ? '已复制' : '复制代码' }}
+                    </span>
+                  </button>
+                </template>
                 <div class="h-4 w-px bg-slate-200"></div>
                 <button
                   @click="handleDeleteFile(currentPreviewFile)"
@@ -1030,6 +1076,12 @@ onMounted(() => {
                   :file-type="currentPreviewFile.type"
                   :html-url="isLegacyDocFile(currentPreviewFile.type) ? fileApi.getDocHtmlUrl(currentPreviewFile.id) : undefined"
                   @zoom-change="updateDocZoom"
+                />
+                <CodePreview
+                  v-else-if="isVhdFile(currentPreviewFile.type)"
+                  :key="currentPreviewFile.id"
+                  :url="resolveFileUrl(currentPreviewFile.url)"
+                  :file-name="currentPreviewFile.name"
                 />
                 <div v-else class="text-center">
                   <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-100 inline-block">
