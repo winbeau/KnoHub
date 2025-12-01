@@ -186,9 +186,37 @@ export const fileApi = {
       method: 'POST',
       body: formData
     })
-    const result: ApiResponse<FileItemDTO> = await response.json()
-    if (!result.success) throw new Error(result.message)
-    return result.data
+
+    const rawText = await response.text()
+    const contentType = response.headers.get('content-type') || ''
+    let parsed: ApiResponse<FileItemDTO> | null = null
+
+    // Try to parse JSON when possible; if not, fall back to raw text for error handling.
+    if (contentType.includes('application/json')) {
+      try {
+        parsed = JSON.parse(rawText) as ApiResponse<FileItemDTO>
+      } catch {}
+    } else {
+      try {
+        parsed = JSON.parse(rawText) as ApiResponse<FileItemDTO>
+      } catch {}
+    }
+
+    if (!response.ok) {
+      if (response.status === 413) {
+        throw new Error('文件过大，超过服务器限制（最大 50MB）')
+      }
+
+      const fallbackMsg = parsed?.message || rawText.trim()
+      throw new Error(fallbackMsg || `上传失败（HTTP ${response.status}）`)
+    }
+
+    if (!parsed) {
+      throw new Error('上传失败：服务器返回异常响应')
+    }
+
+    if (!parsed.success) throw new Error(parsed.message || '上传失败')
+    return parsed.data
   },
 
   /**

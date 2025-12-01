@@ -1,5 +1,9 @@
 server:
   port: 8080
+  tomcat:
+    # Align Tomcat body limits with multipart settings to avoid large uploads being rejected before Spring handles them
+    max-http-form-post-size: 50MB
+    max-swallow-size: 50MB
 
 spring:
   application:
