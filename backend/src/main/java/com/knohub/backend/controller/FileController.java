@@ -53,6 +53,26 @@ public class FileController {
     }
 
     /**
+     * Batch upload files to a resource
+     */
+    @PostMapping("/{resourceId}/upload/batch")
+    public ResponseEntity<ApiResponse<List<FileItemDTO>>> uploadFiles(
+            @PathVariable Long resourceId,
+            @RequestParam(required = false) Long folderId,
+            @RequestParam("files") MultipartFile[] files) {
+
+        try {
+            List<FileItemDTO> result = fileService.uploadFiles(resourceId, folderId, files);
+            return ResponseEntity.ok(ApiResponse.success("批量上传成功", result));
+        } catch (IOException e) {
+            log.error("Batch file upload failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("文件上传失败: " + e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /**
      * Delete a file (soft delete)
      */
     @DeleteMapping("/{fileId}")

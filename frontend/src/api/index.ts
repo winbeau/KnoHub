@@ -221,6 +221,55 @@ export const fileApi = {
   },
 
   /**
+   * Upload multiple files to a resource
+   */
+  async uploadBatch(resourceId: number, files: File[], folderId?: number | null): Promise<FileItemDTO[]> {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+
+    let url = `${API_BASE_URL}/files/${resourceId}/upload/batch`
+    if (folderId) {
+      url += `?folderId=${folderId}`
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData
+    })
+
+    const rawText = await response.text()
+    const contentType = response.headers.get('content-type') || ''
+    let parsed: ApiResponse<FileItemDTO[]> | null = null
+
+    if (contentType.includes('application/json')) {
+      try {
+        parsed = JSON.parse(rawText) as ApiResponse<FileItemDTO[]>
+      } catch {}
+    } else {
+      try {
+        parsed = JSON.parse(rawText) as ApiResponse<FileItemDTO[]>
+      } catch {}
+    }
+
+    if (!response.ok) {
+      if (response.status === 413) {
+        const limitMsg = parsed?.message || rawText.trim()
+        throw new Error(limitMsg || '上传失败：请求体过大 (413)。如经由 Nginx，请调整 client_max_body_size（默认 1M）。')
+      }
+
+      const fallbackMsg = parsed?.message || rawText.trim()
+      throw new Error(fallbackMsg || `上传失败（HTTP ${response.status}）`)
+    }
+
+    if (!parsed) {
+      throw new Error('上传失败：服务器返回异常响应')
+    }
+
+    if (!parsed.success) throw new Error(parsed.message || '上传失败')
+    return parsed.data || []
+  },
+
+  /**
    * Delete a file (soft delete)
    */
   async deleteFile(fileId: number): Promise<void> {

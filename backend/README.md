@@ -27,6 +27,7 @@ Spring Boot 后端服务，为课程资料共享平台提供 API 支持。
 |------|------|------|
 | GET | `/api/files/{resourceId}` | 获取资源的文件列表 |
 | POST | `/api/files/{resourceId}/upload?folderId=xxx` | 上传文件 |
+| POST | `/api/files/{resourceId}/upload/batch?folderId=xxx` | 批量上传文件 |
 | DELETE | `/api/files/{fileId}` | 删除文件（软删除） |
 | POST | `/api/files/{resourceId}/folders` | 创建文件夹 |
 | DELETE | `/api/files/folders/{folderId}` | 删除文件夹（软删除） |

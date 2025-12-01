@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -61,63 +62,37 @@ public class FileService {
     @Transactional
     public FileItemDTO uploadFile(Long resourceId, Long folderId, MultipartFile file) throws IOException {
         Resource resource = getActiveResource(resourceId);
+        return uploadSingle(resource, folderId, file);
+    }
 
-        FileItem parentFolder = null;
-        if (folderId != null) {
-            parentFolder = fileItemRepository.findByIdAndDeletedFalse(folderId)
-                    .orElseThrow(() -> new RuntimeException("文件夹不存在: " + folderId));
-            if (!parentFolder.isFolder()) {
-                throw new RuntimeException("目标不是文件夹");
+    /**
+     * Batch upload multiple files to a resource
+     *
+     * @param resourceId Target resource ID
+     * @param folderId   Target folder ID (null for root level)
+     * @param files      Files to upload
+     * @return List of FileItemDTO for uploaded files
+     */
+    @Transactional
+    public List<FileItemDTO> uploadFiles(Long resourceId, Long folderId, MultipartFile[] files) throws IOException {
+        Resource resource = getActiveResource(resourceId);
+        if (files == null || files.length == 0) {
+            throw new RuntimeException("请选择要上传的文件");
+        }
+
+        List<FileItemDTO> result = new ArrayList<>();
+        for (MultipartFile file : files) {
+            if (file == null) {
+                continue;
             }
+            result.add(uploadSingle(resource, folderId, file));
         }
 
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || originalFilename.isEmpty()) {
-            originalFilename = "unnamed_file";
+        if (result.isEmpty()) {
+            throw new RuntimeException("未找到有效的文件");
         }
 
-        // Check if file with same name exists (non-deleted)
-        boolean exists = folderId != null
-                ? fileItemRepository.existsByNameInFolder(originalFilename, folderId, resourceId)
-                : fileItemRepository.existsByNameAtRoot(originalFilename, resourceId);
-
-        if (exists) {
-            throw new RuntimeException("同名文件已存在: " + originalFilename);
-        }
-
-        // Extract file extension
-        String extension = "";
-        int lastDot = originalFilename.lastIndexOf('.');
-        if (lastDot > 0) {
-            extension = originalFilename.substring(lastDot + 1).toLowerCase();
-        }
-
-        // Save file to disk
-        String storageName = UUID.randomUUID() + "_" + originalFilename;
-        Path uploadPath = Paths.get(uploadDir, String.valueOf(resourceId));
-        Files.createDirectories(uploadPath);
-        Path filePath = uploadPath.resolve(storageName);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-        // Create FileItem entity
-        FileItem fileItem = FileItem.builder()
-                .name(originalFilename)
-                .originalName(originalFilename)
-                .isFolder(false)
-                .type(extension)
-                .size(formatFileSize(file.getSize()))
-                .sizeBytes(file.getSize())
-                .url("/api/files/" + resourceId + "/download/" + storageName)
-                .storagePath(filePath.toString())
-                .resource(resource)
-                .parent(parentFolder)
-                .deleted(false)
-                .build();
-
-        fileItem = fileItemRepository.save(fileItem);
-        log.info("File uploaded: {} to resource {}, folder {}", originalFilename, resourceId, folderId);
-
-        return toDTO(fileItem);
+        return result;
     }
 
     /**
@@ -287,6 +262,74 @@ public class FileService {
         }
 
         fileItemRepository.save(item);
+    }
+
+    private FileItemDTO uploadSingle(Resource resource, Long folderId, MultipartFile file) throws IOException {
+        if (file == null) {
+            throw new RuntimeException("文件为空，无法上传");
+        }
+
+        FileItem parentFolder = null;
+        if (folderId != null) {
+            parentFolder = fileItemRepository.findByIdAndDeletedFalse(folderId)
+                    .orElseThrow(() -> new RuntimeException("文件夹不存在: " + folderId));
+            if (!parentFolder.isFolder()) {
+                throw new RuntimeException("目标不是文件夹");
+            }
+            if (!parentFolder.getResource().getId().equals(resource.getId())) {
+                throw new RuntimeException("目标文件夹不属于该资源");
+            }
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isEmpty()) {
+            originalFilename = "unnamed_file";
+        }
+
+        Long resourceId = resource.getId();
+
+        // Check if file with same name exists (non-deleted)
+        boolean exists = folderId != null
+                ? fileItemRepository.existsByNameInFolder(originalFilename, folderId, resourceId)
+                : fileItemRepository.existsByNameAtRoot(originalFilename, resourceId);
+
+        if (exists) {
+            throw new RuntimeException("同名文件已存在: " + originalFilename);
+        }
+
+        // Extract file extension
+        String extension = "";
+        int lastDot = originalFilename.lastIndexOf('.');
+        if (lastDot > 0) {
+            extension = originalFilename.substring(lastDot + 1).toLowerCase();
+        }
+
+        // Save file to disk
+        String storageName = UUID.randomUUID() + "_" + originalFilename;
+        Path uploadPath = Paths.get(uploadDir, String.valueOf(resourceId));
+        Files.createDirectories(uploadPath);
+        Path filePath = uploadPath.resolve(storageName);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        // Create FileItem entity
+        FileItem fileItem = FileItem.builder()
+                .name(originalFilename)
+                .originalName(originalFilename)
+                .isFolder(false)
+                .type(extension)
+                .size(formatFileSize(file.getSize()))
+                .sizeBytes(file.getSize())
+                .url("/api/files/" + resourceId + "/download/" + storageName)
+                .storagePath(filePath.toString())
+                .resource(resource)
+                .parent(parentFolder)
+                .deleted(false)
+                .build();
+
+        fileItem = fileItemRepository.save(fileItem);
+        log.info("File uploaded: {} to resource {}, folder {}", originalFilename, resourceId, folderId);
+
+        return toDTO(fileItem);
     }
 
     /**

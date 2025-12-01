@@ -8,6 +8,7 @@ import Toast from './components/Toast.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import DocPreview from './components/DocPreview.vue'
 import PdfPreview from './components/PdfPreview.vue'
+import ImagePreview from './components/ImagePreview.vue'
 import knoHubLogo from './assets/knohub.svg'
 import { tabs } from './data'
 import { resourceApi, fileApi, metricsApi, API_ORIGIN } from './api'
@@ -68,7 +69,12 @@ const newResourceModal = reactive({
 })
 
 // 文档/PDF 预览控制
-const viewerRef = ref<InstanceType<typeof DocPreview> | InstanceType<typeof PdfPreview> | null>(null)
+const viewerRef = ref<
+  | InstanceType<typeof DocPreview>
+  | InstanceType<typeof PdfPreview>
+  | InstanceType<typeof ImagePreview>
+  | null
+>(null)
 const docZoom = ref(100)
 const fitDoc = () => {
   viewerRef.value?.autoFit?.()
@@ -195,7 +201,11 @@ const formatDate = (value?: string) => {
   return `${d.getFullYear()}-${month}-${day}`
 }
 
-const isImage = (type?: string) => type && ['png', 'jpg', 'jpeg', 'gif'].includes(type)
+const isImage = (type?: string) => {
+  if (!type) return false
+  const t = type.toLowerCase()
+  return ['png', 'jpg', 'jpeg', 'gif'].includes(t)
+}
 
 const getFileIcon = (type?: string) => {
   if (isImage(type)) return 'fa-solid fa-image'
@@ -206,7 +216,7 @@ const getFileIcon = (type?: string) => {
 
 const isDocFile = (type?: string) => type && ['doc', 'docx'].includes(type.toLowerCase())
 const isPdfFile = (type?: string) => type && type.toLowerCase() === 'pdf'
-const isZoomablePreview = (type?: string) => isDocFile(type) || isPdfFile(type)
+const isZoomablePreview = (type?: string) => isDocFile(type) || isPdfFile(type) || isImage(type)
 const isLegacyDocFile = (type?: string) => type && type.toLowerCase() === 'doc'
 const resolveFileUrl = (url?: string | null) => {
   if (!url) return ''
@@ -236,6 +246,9 @@ const resetView = () => {
 
 const setPreviewFile = (file: FileItem) => {
   currentPreviewFile.value = file
+  if (isZoomablePreview(file.type)) {
+    docZoom.value = 100
+  }
 }
 
 const resetDownloadState = () => {
@@ -380,13 +393,15 @@ const handleReorder = async (dragId: number, dropId: number, position: 'before' 
   }
 }
 
-const handleUploadConfirm = async (file: File, folderId: number | null) => {
+const handleUploadConfirm = async (files: File[], folderId: number | null) => {
   if (!uploadTargetId.value) return
 
   const stopProgress = uploadModalRef.value?.setUploading()
 
   try {
-    await fileApi.upload(uploadTargetId.value, file, folderId)
+    const targetFiles = files && files.length ? files : []
+    if (!targetFiles.length) throw new Error('请选择文件')
+    await fileApi.uploadBatch(uploadTargetId.value, targetFiles, folderId)
     stopProgress?.()
     uploadModalRef.value?.setSuccess()
     // Refresh the resource to show new file
@@ -992,10 +1007,12 @@ onMounted(() => {
                 <p class="text-sm">请在左侧选择文件进行预览</p>
               </div>
               <template v-else>
-                <img
+                <ImagePreview
                   v-if="isImage(currentPreviewFile.type)"
-                  :src="resolveFileUrl(currentPreviewFile.url)"
-                  class="max-w-full max-h-full shadow-lg shadow-sky-100 object-contain bg-white"
+                  ref="viewerRef"
+                  :key="currentPreviewFile.id"
+                  :url="resolveFileUrl(currentPreviewFile.url)"
+                  @zoom-change="updateDocZoom"
                 />
                 <PdfPreview
                   v-else-if="currentPreviewFile.type === 'pdf'"

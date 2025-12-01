@@ -11,12 +11,17 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
-  'confirm': [file: File, folderId: number | null]
+  'confirm': [files: File[], folderId: number | null]
 }>()
 
-// 缓存的文件（未上传）
-const cachedFile = ref<File | null>(null)
-const customName = ref('')
+type PendingFile = {
+  file: File
+  baseName: string
+  extension: string
+}
+
+// 选择的文件列表（未上传）
+const pendingFiles = ref<PendingFile[]>([])
 const targetFolderId = ref<number | null>(null)
 
 // 上传状态
@@ -54,29 +59,20 @@ const baseNameFromFile = (file: File) => {
   return name
 }
 
-const fileExtension = computed(() => {
-  if (!cachedFile.value) return ''
-  const name = cachedFile.value.name
-  const lastDot = name.lastIndexOf('.')
-  if (lastDot > 0 && lastDot < name.length - 1) {
-    return name.slice(lastDot + 1)
-  }
-  return ''
-})
+const totalSize = computed(() => pendingFiles.value.reduce((sum, f) => sum + f.file.size, 0))
 
-const finalFileName = computed(() => {
-  if (!cachedFile.value) return ''
-  const base = (customName.value || baseNameFromFile(cachedFile.value)).trim()
-  const ext = fileExtension.value
-  return ext ? `${base}.${ext}` : base
-})
+const formatSize = (bytes: number) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + ['B', 'KB', 'MB', 'GB'][i]
+}
 
 // 监听 visible 变化，重置状态
 watch(() => props.visible, (newVal) => {
   if (newVal) {
     // 打开时重置状态
-    cachedFile.value = null
-    customName.value = ''
+    pendingFiles.value = []
     targetFolderId.value = null
     uploadState.value = 'idle'
     uploadProgress.value = 0
@@ -84,9 +80,21 @@ watch(() => props.visible, (newVal) => {
   }
 })
 
-const setCachedFile = (file: File) => {
-  cachedFile.value = file
-  customName.value = baseNameFromFile(file)
+const splitFileName = (file: File) => {
+  const name = file.name
+  const lastDot = name.lastIndexOf('.')
+  if (lastDot > 0 && lastDot < name.length - 1) {
+    return { base: name.slice(0, lastDot), extension: name.slice(lastDot + 1) }
+  }
+  return { base: name, extension: '' }
+}
+
+const addFiles = (files: File[]) => {
+  const mapped = files.map((file) => {
+    const parts = splitFileName(file)
+    return { file, baseName: parts.base, extension: parts.extension }
+  })
+  pendingFiles.value = pendingFiles.value.concat(mapped)
   uploadState.value = 'idle'
   errorMessage.value = ''
 }
@@ -94,8 +102,8 @@ const setCachedFile = (file: File) => {
 // 选择文件
 const handleFileSelect = (e: Event) => {
   const target = e.target as HTMLInputElement
-  if (target.files?.[0]) {
-    setCachedFile(target.files[0])
+  if (target.files?.length) {
+    addFiles(Array.from(target.files))
   }
   // 重置 input 以便可以重复选择同一文件
   target.value = ''
@@ -103,17 +111,9 @@ const handleFileSelect = (e: Event) => {
 
 // 拖拽文件
 const handleFileDrop = (e: DragEvent) => {
-  if (e.dataTransfer?.files[0]) {
-    setCachedFile(e.dataTransfer.files[0])
+  if (e.dataTransfer?.files?.length) {
+    addFiles(Array.from(e.dataTransfer.files))
   }
-}
-
-// 格式化文件大小
-const formatSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + ['B', 'KB', 'MB', 'GB'][i]
 }
 
 // 关闭弹窗
@@ -123,22 +123,25 @@ const closeModal = () => {
 
 // 清除缓存的文件
 const clearFile = () => {
-  cachedFile.value = null
-  customName.value = ''
+  pendingFiles.value = []
   uploadState.value = 'idle'
   uploadProgress.value = 0
   errorMessage.value = ''
 }
 
+const removeFile = (index: number) => {
+  pendingFiles.value.splice(index, 1)
+}
+
 // 确认上传 - 真正执行上传
 const confirmUpload = () => {
-  if (!cachedFile.value) return
-  const nameToUse = finalFileName.value || cachedFile.value.name
-  const fileToSend =
-    nameToUse === cachedFile.value.name
-      ? cachedFile.value
-      : new File([cachedFile.value], nameToUse, { type: cachedFile.value.type })
-  emit('confirm', fileToSend, targetFolderId.value)
+  if (!pendingFiles.value.length) return
+  const filesToSend = pendingFiles.value.map(({ file, baseName, extension }) => {
+    const finalName = extension ? `${baseName.trim() || baseNameFromFile(file)}.${extension}` : (baseName.trim() || baseNameFromFile(file))
+    if (finalName === file.name) return file
+    return new File([file], finalName, { type: file.type })
+  })
+  emit('confirm', filesToSend, targetFolderId.value)
 }
 
 // 暴露方法给父组件控制上传状态
@@ -209,7 +212,7 @@ defineExpose({
         <div
           v-if="uploadState === 'idle' || uploadState === 'error'"
           class="border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer relative"
-          :class="cachedFile ? 'border-sky-300 bg-sky-50/50' : 'border-slate-200 hover:border-sky-300 hover:bg-sky-50/30'"
+          :class="pendingFiles.length ? 'border-sky-300 bg-sky-50/50' : 'border-slate-200 hover:border-sky-300 hover:bg-sky-50/30'"
           @dragover.prevent
           @drop.prevent="handleFileDrop"
         >
@@ -217,25 +220,57 @@ defineExpose({
             type="file"
             @change="handleFileSelect"
             class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            multiple
             accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.zip,.rar,.txt,.md"
           />
 
           <!-- 未选择文件 -->
-          <div v-if="!cachedFile">
+          <div v-if="!pendingFiles.length">
             <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-sky-100 flex items-center justify-center">
               <i class="fa-solid fa-cloud-arrow-up text-2xl text-sky-500"></i>
             </div>
-            <p class="text-sm text-slate-600 font-medium mb-1">点击或拖拽文件到此处</p>
+            <p class="text-sm text-slate-600 font-medium mb-1">点击或拖拽文件到此处（可多选）</p>
             <p class="text-xs text-slate-400">支持 jpg, png, pdf, doc, zip 等格式</p>
           </div>
 
           <!-- 已选择文件（缓存中） -->
-          <div v-else>
-            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
-              <i class="fa-solid fa-file-circle-check text-2xl text-emerald-500"></i>
+          <div v-else class="space-y-3 text-left">
+            <div
+              v-for="(item, idx) in pendingFiles"
+              :key="item.file.name + idx"
+              class="flex items-start gap-3 p-3 bg-white/80 rounded-lg border border-slate-100"
+            >
+              <div class="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i class="fa-solid fa-file-lines"></i>
+              </div>
+              <div class="flex-1 min-w-0 space-y-1">
+                <div class="flex items-center gap-2">
+                  <input
+                    v-model="item.baseName"
+                    type="text"
+                    placeholder="文件名"
+                    class="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none text-sm"
+                  />
+                  <span
+                    v-if="item.extension"
+                    class="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs text-slate-500"
+                  >
+                    .{{ item.extension }}
+                  </span>
+                </div>
+                <div class="text-xs text-slate-400">{{ formatSize(item.file.size) }}</div>
+              </div>
+              <button
+                class="text-slate-400 hover:text-red-500 transition"
+                title="移除"
+                @click.stop="removeFile(idx)"
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
-            <p class="text-sm text-slate-700 font-medium truncate mb-1">{{ cachedFile.name }}</p>
-            <p class="text-xs text-slate-400">{{ formatSize(cachedFile.size) }} · 已缓存，待上传</p>
+            <div class="text-xs text-slate-500">
+              共 {{ pendingFiles.length }} 个文件 · {{ formatSize(totalSize) }}
+            </div>
           </div>
         </div>
 
@@ -271,36 +306,13 @@ defineExpose({
         </div>
 
         <!-- 清除文件按钮 -->
-        <div v-if="cachedFile && (uploadState === 'idle' || uploadState === 'error')" class="mt-3 text-right">
+        <div v-if="pendingFiles.length && (uploadState === 'idle' || uploadState === 'error')" class="mt-3 text-right">
           <button
             @click.stop="clearFile"
             class="text-sm text-slate-400 hover:text-red-500 transition"
           >
-            <i class="fa-solid fa-trash-can mr-1"></i>清除选择
+            <i class="fa-solid fa-trash-can mr-1"></i>清除全部
           </button>
-        </div>
-
-        <!-- 自定义保存名称 -->
-        <div v-if="cachedFile && (uploadState === 'idle' || uploadState === 'error')" class="mt-4">
-          <label class="block text-sm font-medium text-slate-700 mb-2">保存文件名</label>
-          <div class="flex items-center gap-2">
-            <input
-              v-model="customName"
-              type="text"
-              placeholder="输入名称，不含后缀"
-              class="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-            />
-            <span
-              v-if="fileExtension"
-              class="px-3 py-2 bg-slate-100 border border-slate-200 rounded-md text-sm text-slate-500"
-            >
-              .{{ fileExtension }}
-            </span>
-          </div>
-          <p class="text-xs text-slate-400 mt-1">
-            最终将保存为:
-            <span class="text-slate-600 font-medium">{{ finalFileName }}</span>
-          </p>
         </div>
 
         <!-- 文件夹选择 -->
@@ -329,11 +341,11 @@ defineExpose({
           <button
             v-if="uploadState === 'idle' || uploadState === 'error'"
             @click="confirmUpload"
-            :disabled="!cachedFile"
+            :disabled="!pendingFiles.length"
             class="px-5 py-2.5 bg-sky-600 text-white rounded-lg text-sm font-medium hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
           >
             <i class="fa-solid fa-upload mr-1"></i>
-            确认上传
+            确认上传（{{ pendingFiles.length }}）
           </button>
           <button
             v-if="uploadState === 'success'"
