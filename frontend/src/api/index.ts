@@ -204,7 +204,8 @@ export const fileApi = {
 
     if (!response.ok) {
       if (response.status === 413) {
-        throw new Error('文件过大，超过服务器限制（最大 50MB）')
+        const limitMsg = parsed?.message || rawText.trim()
+        throw new Error(limitMsg || '上传失败：请求体过大 (413)。如经由 Nginx，请调整 client_max_body_size（默认 1M）。')
       }
 
       const fallbackMsg = parsed?.message || rawText.trim()

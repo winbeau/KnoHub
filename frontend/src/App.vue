@@ -33,6 +33,13 @@ const uploadTargetTitle = ref('')
 const toastRef = ref<InstanceType<typeof Toast> | null>(null)
 const confirmRef = ref<InstanceType<typeof ConfirmDialog> | null>(null)
 
+// Download progress state
+const downloadProgress = ref(0)
+const downloadStatus = ref<'idle' | 'downloading' | 'success' | 'error'>('idle')
+const downloadingFile = ref<FileItem | null>(null)
+const downloadMessage = ref('')
+const downloadTotalKnown = ref(true)
+
 // Create Folder Modal
 const folderModal = reactive({
   visible: false,
@@ -231,19 +238,106 @@ const setPreviewFile = (file: FileItem) => {
   currentPreviewFile.value = file
 }
 
-const downloadFile = (file: FileItem) => {
+const resetDownloadState = () => {
+  downloadProgress.value = 0
+  downloadStatus.value = 'idle'
+  downloadingFile.value = null
+  downloadMessage.value = ''
+  downloadTotalKnown.value = true
+}
+
+const triggerBrowserDownload = (blob: Blob, filename: string) => {
+  const blobUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(blobUrl)
+}
+
+const fetchWithProgress = async (url: string, filename: string) => {
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    const rawText = await response.text().catch(() => '')
+    let message = `下载失败（HTTP ${response.status}）`
+    try {
+      const parsed = JSON.parse(rawText)
+      if (parsed?.message) message = parsed.message
+    } catch {
+      if (rawText) message = rawText.trim()
+    }
+    throw new Error(message)
+  }
+
+  const total = Number(response.headers.get('content-length') || '0')
+  downloadTotalKnown.value = total > 0
+
+  if (!response.body || !response.body.getReader) {
+    const blob = await response.blob()
+    triggerBrowserDownload(blob, filename)
+    downloadProgress.value = 100
+    return
+  }
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let received = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (value) {
+      chunks.push(value)
+      received += value.length
+      if (total > 0) {
+        const percent = Math.round((received / total) * 100)
+        downloadProgress.value = Math.min(percent, 99)
+      } else {
+        // When size is unknown, gently bump progress to show activity
+        downloadProgress.value = Math.min(95, downloadProgress.value + Math.random() * 5)
+      }
+    }
+  }
+
+  const blob = new Blob(chunks, { type: response.headers.get('content-type') || 'application/octet-stream' })
+  downloadProgress.value = 100
+  triggerBrowserDownload(blob, filename)
+}
+
+const downloadFile = async (file: FileItem) => {
   const downloadUrl = resolveFileUrl(file.url)
-  if (downloadUrl) {
-    // Create a temporary anchor to trigger download
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.download = file.name
-    link.target = '_blank'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  } else {
+  if (!downloadUrl) {
     toastRef.value?.warning(`文件 ${file.name} 暂无下载链接`)
+    return
+  }
+
+  if (downloadStatus.value === 'downloading') {
+    toastRef.value?.info('已有下载进行中，请稍候')
+    return
+  }
+
+  downloadingFile.value = file
+  downloadStatus.value = 'downloading'
+  downloadProgress.value = 2
+  downloadMessage.value = ''
+  downloadTotalKnown.value = true
+
+  try {
+    await fetchWithProgress(downloadUrl, file.name)
+    downloadStatus.value = 'success'
+    toastRef.value?.success('下载完成')
+    setTimeout(() => {
+      if (downloadStatus.value === 'success') {
+        resetDownloadState()
+      }
+    }, 1200)
+  } catch (e) {
+    downloadStatus.value = 'error'
+    downloadMessage.value = e instanceof Error ? e.message : '下载失败'
+    toastRef.value?.error(downloadMessage.value)
   }
 }
 
@@ -1088,6 +1182,54 @@ onMounted(() => {
               <i class="fa-solid fa-check"></i>
               {{ renameModal.loading ? '提交中...' : '确认' }}
             </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 下载进度浮层 -->
+    <Teleport to="body">
+      <div
+        v-if="downloadStatus !== 'idle'"
+        class="fixed bottom-24 right-4 z-[12000] w-72"
+      >
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-2xl p-4">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <i
+                class="fa-solid"
+                :class="{
+                  'fa-spinner fa-spin text-sky-500': downloadStatus === 'downloading',
+                  'fa-circle-check text-emerald-500': downloadStatus === 'success',
+                  'fa-circle-exclamation text-red-500': downloadStatus === 'error'
+                }"
+              ></i>
+              <span class="text-sm font-semibold text-slate-800">
+                {{ downloadStatus === 'downloading' ? '正在下载' : downloadStatus === 'success' ? '下载完成' : '下载失败' }}
+              </span>
+            </div>
+            <button
+              @click="resetDownloadState"
+              class="text-slate-400 hover:text-slate-600 transition"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <p class="text-xs text-slate-500 truncate mb-3" v-if="downloadingFile">
+            {{ downloadingFile.name }}
+          </p>
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-2">
+            <div
+              class="h-full rounded-full transition-all duration-300"
+              :class="downloadStatus === 'error' ? 'bg-red-400' : 'bg-sky-500'"
+              :style="{ width: `${Math.min(downloadProgress, 100)}%` }"
+            ></div>
+          </div>
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span>{{ Math.round(downloadProgress) }}%</span>
+            <span v-if="downloadStatus === 'error'" class="text-red-500 truncate max-w-[140px]">{{ downloadMessage }}</span>
+            <span v-else-if="downloadStatus === 'downloading' && !downloadTotalKnown">大小未知，已获取数据…</span>
+            <span v-else-if="downloadStatus === 'success'" class="text-emerald-500">准备保存</span>
           </div>
         </div>
       </div>
