@@ -60,8 +60,7 @@ public class FileService {
      */
     @Transactional
     public FileItemDTO uploadFile(Long resourceId, Long folderId, MultipartFile file) throws IOException {
-        Resource resource = resourceRepository.findById(resourceId)
-                .orElseThrow(() -> new RuntimeException("资源不存在: " + resourceId));
+        Resource resource = getActiveResource(resourceId);
 
         FileItem parentFolder = null;
         if (folderId != null) {
@@ -180,8 +179,7 @@ public class FileService {
      */
     @Transactional
     public FileItemDTO createFolder(Long resourceId, Long parentFolderId, String folderName) {
-        Resource resource = resourceRepository.findById(resourceId)
-                .orElseThrow(() -> new RuntimeException("资源不存在: " + resourceId));
+        Resource resource = getActiveResource(resourceId);
 
         FileItem parentFolder = null;
         if (parentFolderId != null) {
@@ -372,10 +370,27 @@ public class FileService {
      * Get all files/folders for a resource (root level, non-deleted)
      */
     public List<FileItemDTO> getResourceFiles(Long resourceId) {
+        getActiveResource(resourceId);
         List<FileItem> files = fileItemRepository.findByResourceIdAndParentIsNullAndDeletedFalseOrderByDisplayOrder(resourceId);
         return files.stream()
                 .map(this::toDTOWithChildren)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Soft delete all files/folders that belong to a resource (resource card soft delete)
+     */
+    @Transactional
+    public void softDeleteResourceFiles(Resource resource) {
+        List<FileItem> roots = fileItemRepository.findByResourceIdAndParentIsNullAndDeletedFalse(resource.getId());
+        for (FileItem item : roots) {
+            if (item.isFolder()) {
+                deleteFolderRecursive(item);
+            } else {
+                softDeleteItem(item);
+            }
+        }
+        log.info("Soft deleted all files for resource {}", resource.getId());
     }
 
     /**
@@ -442,6 +457,11 @@ public class FileService {
             log.error("Failed to render .doc to HTML", e);
             throw new RuntimeException("文档预览失败: " + e.getMessage());
         }
+    }
+
+    private Resource getActiveResource(Long resourceId) {
+        return resourceRepository.findByIdAndDeletedFalse(resourceId)
+                .orElseThrow(() -> new RuntimeException("资源不存在或已删除: " + resourceId));
     }
 
     /**

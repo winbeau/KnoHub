@@ -3,26 +3,37 @@ package com.knohub.backend.repository;
 import com.knohub.backend.model.Resource;
 import com.knohub.backend.model.ResourceType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ResourceRepository extends JpaRepository<Resource, Long> {
 
     /**
-     * Find all resources by type
+     * Find all non-deleted resources
      */
-    List<Resource> findByType(ResourceType type);
+    List<Resource> findByDeletedFalse();
 
     /**
-     * Search resources by title or description
+     * Find a resource that is not deleted
      */
-    List<Resource> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String title, String description);
+    Optional<Resource> findByIdAndDeletedFalse(Long id);
 
     /**
-     * Find resources by type with search
+     * Find all non-deleted resources by type
      */
-    List<Resource> findByTypeAndTitleContainingIgnoreCaseOrTypeAndDescriptionContainingIgnoreCase(
-            ResourceType type1, String title, ResourceType type2, String description);
+    List<Resource> findByTypeAndDeletedFalse(ResourceType type);
+
+    /**
+     * Search non-deleted resources by title or description
+     */
+    @Query("SELECT r FROM Resource r WHERE r.deleted = false AND (" +
+            "LOWER(r.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(COALESCE(r.description, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
+            ")")
+    List<Resource> searchActive(@Param("keyword") String keyword);
 }

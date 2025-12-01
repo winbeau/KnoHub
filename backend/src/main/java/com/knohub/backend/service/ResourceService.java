@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,7 +29,7 @@ public class ResourceService {
      * Get all resources
      */
     public List<ResourceDTO> getAllResources() {
-        return resourceRepository.findAll().stream()
+        return resourceRepository.findByDeletedFalse().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -37,8 +38,8 @@ public class ResourceService {
      * Get resource by ID
      */
     public ResourceDTO getResourceById(Long id) {
-        Resource resource = resourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("资源不存在: " + id));
+        Resource resource = resourceRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new RuntimeException("资源不存在或已删除: " + id));
         return toDTO(resource);
     }
 
@@ -47,7 +48,7 @@ public class ResourceService {
      */
     public List<ResourceDTO> getResourcesByType(String type) {
         ResourceType resourceType = ResourceType.valueOf(type.toUpperCase());
-        return resourceRepository.findByType(resourceType).stream()
+        return resourceRepository.findByTypeAndDeletedFalse(resourceType).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -56,9 +57,7 @@ public class ResourceService {
      * Search resources by keyword
      */
     public List<ResourceDTO> searchResources(String keyword) {
-        return resourceRepository
-                .findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(keyword, keyword)
-                .stream()
+        return resourceRepository.searchActive(keyword).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -88,8 +87,8 @@ public class ResourceService {
      */
     @Transactional
     public ResourceDTO updateResource(Long id, ResourceDTO request) {
-        Resource resource = resourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("资源不存在: " + id));
+        Resource resource = resourceRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new RuntimeException("资源不存在或已删除: " + id));
 
         resource.setTitle(request.getTitle());
         resource.setDescription(request.getDescription());
@@ -107,15 +106,20 @@ public class ResourceService {
     }
 
     /**
-     * Delete resource
+     * Soft delete resource and mark all attached files/folders
      */
     @Transactional
     public void deleteResource(Long id) {
-        Resource resource = resourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("资源不存在: " + id));
+        Resource resource = resourceRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new RuntimeException("资源不存在或已删除: " + id));
 
-        resourceRepository.delete(resource);
-        log.info("Resource deleted: {}", id);
+        // Soft delete all files/folders under this resource
+        fileService.softDeleteResourceFiles(resource);
+
+        resource.setDeleted(true);
+        resource.setDeletedAt(LocalDateTime.now());
+        resourceRepository.save(resource);
+        log.info("Resource soft deleted: {}", id);
     }
 
     /**

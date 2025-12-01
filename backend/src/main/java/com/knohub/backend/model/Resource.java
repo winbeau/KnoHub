@@ -37,6 +37,18 @@ public class Resource {
     @Enumerated(EnumType.STRING)
     private ResourceTag tag;
 
+    /**
+     * Soft delete flag for resource cards
+     */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean deleted = false;
+
+    /**
+     * Timestamp when the resource was soft deleted
+     */
+    private LocalDateTime deletedAt;
+
     @Column(nullable = false)
     private LocalDate updateDate;
 

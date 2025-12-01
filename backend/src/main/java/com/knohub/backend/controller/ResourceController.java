@@ -93,7 +93,7 @@ public class ResourceController {
     }
 
     /**
-     * Delete a resource
+     * Delete a resource (soft delete)
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteResource(@PathVariable Long id) {
