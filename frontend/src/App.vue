@@ -79,7 +79,9 @@ const viewerRef = ref<
 >(null)
 const docZoom = ref(100)
 const fitDoc = () => {
-  viewerRef.value?.autoFit?.()
+  if (!currentPreviewFile.value || !isZoomablePreview(currentPreviewFile.value.type)) return
+  const viewer = viewerRef.value as InstanceType<typeof DocPreview> | InstanceType<typeof PdfPreview> | InstanceType<typeof ImagePreview> | null
+  viewer?.autoFit?.()
 }
 
 // --- API Methods ---
@@ -364,11 +366,15 @@ const updateDocZoom = (value: number) => {
 }
 
 const zoomDocIn = () => {
-  viewerRef.value?.zoomIn?.()
+  if (!currentPreviewFile.value || !isZoomablePreview(currentPreviewFile.value.type)) return
+  const viewer = viewerRef.value as InstanceType<typeof DocPreview> | InstanceType<typeof PdfPreview> | InstanceType<typeof ImagePreview> | null
+  viewer?.zoomIn?.()
 }
 
 const zoomDocOut = () => {
-  viewerRef.value?.zoomOut?.()
+  if (!currentPreviewFile.value || !isZoomablePreview(currentPreviewFile.value.type)) return
+  const viewer = viewerRef.value as InstanceType<typeof DocPreview> | InstanceType<typeof PdfPreview> | InstanceType<typeof ImagePreview> | null
+  viewer?.zoomOut?.()
 }
 
 const vhdCopyState = reactive({
@@ -377,7 +383,9 @@ const vhdCopyState = reactive({
 })
 
 const copyVhdContent = async () => {
-  const result = await viewerRef.value?.copyContent?.()
+  if (!currentPreviewFile.value || !isVhdFile(currentPreviewFile.value.type)) return
+  const viewer = viewerRef.value as InstanceType<typeof CodePreview> | null
+  const result = await viewer?.copyContent?.()
   if (result === false) {
     vhdCopyState.copied = false
     return
