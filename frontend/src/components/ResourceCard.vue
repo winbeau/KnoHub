@@ -6,6 +6,10 @@ const props = defineProps<{
   data: Resource
 }>()
 
+const emit = defineEmits<{
+  (e: 'delete', resource: Resource): void
+}>()
+
 const getStatusColor = (status?: string) => {
   if (status === 'New') return 'bg-emerald-100 text-emerald-700'
   if (status === 'Hot') return 'bg-rose-100 text-rose-700'
@@ -29,6 +33,13 @@ const fileCount = computed(() => {
   <div
     class="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md hover:border-sky-300 transition-all duration-200 cursor-pointer flex flex-col h-[200px] group relative overflow-hidden"
   >
+    <button
+      class="absolute top-2 right-2 text-slate-400 hover:text-rose-600 bg-white/90 border border-slate-200 rounded-full w-8 h-8 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition"
+      title="删除卡片"
+      @click.stop="emit('delete', data)"
+    >
+      <i class="fa-regular fa-trash-can text-xs"></i>
+    </button>
     <div class="h-1 bg-gradient-to-r from-sky-400 to-blue-500 w-full"></div>
     <div class="p-4 flex-grow flex flex-col">
       <div class="flex justify-between items-center mb-3">

@@ -440,6 +440,30 @@ const handleCreateResource = async () => {
   }
 }
 
+const handleDeleteResource = async (resource: Resource) => {
+  const confirmed = await confirmRef.value?.show({
+    title: '删除资源',
+    message: `确定要删除「${resource.title}」吗？相关文件夹及文件会被标记为已删除。`,
+    confirmText: '删除',
+    cancelText: '取消',
+    type: 'danger'
+  })
+
+  if (!confirmed) return
+
+  try {
+    await resourceApi.delete(resource.id)
+    resources.value = resources.value.filter(r => r.id !== resource.id)
+    if (activeResource.value?.id === resource.id) {
+      activeResource.value = null
+      currentPreviewFile.value = null
+    }
+    toastRef.value?.success('删除成功！')
+  } catch (e) {
+    toastRef.value?.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
 const splitNameParts = (item: FileItem) => {
   if (item.isFolder) {
     return { base: item.name, extension: '' }
@@ -786,6 +810,7 @@ onMounted(() => {
                 :key="item.id"
                 :data="item"
                 @click="enterDetailView(item)"
+                @delete="handleDeleteResource(item)"
               />
             </TransitionGroup>
           </div>
@@ -826,6 +851,12 @@ onMounted(() => {
             </span>
           </div>
           <div class="flex items-center gap-2">
+            <button
+              @click="activeResource && handleDeleteResource(activeResource)"
+              class="text-rose-600 bg-rose-50 border border-rose-200 text-xs px-3 py-1.5 rounded hover:bg-rose-100 transition flex items-center gap-1 shadow-sm"
+            >
+              <i class="fa-solid fa-trash-can"></i> 删除
+            </button>
             <button
               @click="openCreateFolderModal(activeResource.id)"
               class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded hover:bg-emerald-700 transition flex items-center gap-1 shadow-sm"
