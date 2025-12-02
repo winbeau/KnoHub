@@ -31,3 +31,7 @@ spring:
 file:
   upload-dir: ./uploads
   deleted-suffix-format: "_deleted_%d"
+
+cors:
+  # Comma-separated additional origin patterns (e.g. https://*.example.com,https://*.trycloudflare.com)
+  allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
