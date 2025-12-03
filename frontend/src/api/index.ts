@@ -74,6 +74,7 @@ export interface ResourceDTO {
   description: string
   tag?: string
   updateDate: string
+  createDate?: string
   files: FileItemDTO[]
 }
 

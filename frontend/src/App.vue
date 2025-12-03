@@ -97,6 +97,7 @@ const loadResources = async () => {
       description: r.description,
       tag: r.tag as 'New' | 'Hot' | 'Rec' | undefined,
       updateDate: r.updateDate,
+      createDate: r.createDate || r.updateDate,
       files: mapFiles(r.files)
     }))
   } catch (e) {
@@ -128,6 +129,22 @@ const mapFiles = (files: any[]): FileItem[] => {
   }))
 }
 
+const countFiles = (list: FileItem[]): number => {
+  let count = 0
+  const walk = (items: FileItem[]) => {
+    items.forEach((item) => {
+      if (!item.isFolder) {
+        count++
+      }
+      if (item.children) {
+        walk(item.children)
+      }
+    })
+  }
+  walk(list)
+  return count
+}
+
 const refreshActiveResource = async () => {
   if (!activeResource.value) return
   try {
@@ -139,6 +156,7 @@ const refreshActiveResource = async () => {
       description: data.description,
       tag: data.tag as 'New' | 'Hot' | 'Rec' | undefined,
       updateDate: data.updateDate,
+      createDate: data.createDate || data.updateDate,
       files: mapFiles(data.files)
     }
     // Also update in resources list
@@ -166,13 +184,9 @@ const getCurrentTabName = computed(() => tabs.find((t) => t.id === currentTab.va
 
 const totalFiles = computed(() => {
   let count = 0
-  const countFiles = (list: FileItem[]) => {
-    list.forEach((item) => {
-      if (!item.isFolder) count++
-      if (item.children) countFiles(item.children)
-    })
-  }
-  resources.value.forEach((r) => countFiles(r.files))
+  resources.value.forEach((r) => {
+    count += countFiles(r.files)
+  })
   return count
 })
 
@@ -437,6 +451,16 @@ const handleUploadConfirm = async (files: File[], folderId: number | null) => {
     await fileApi.uploadBatch(uploadTargetId.value, targetFiles, folderId)
     stopProgress?.()
     uploadModalRef.value?.setSuccess()
+    // 更新时间为当前上传成功时间
+    const now = new Date().toISOString()
+    if (activeResource.value && activeResource.value.id === uploadTargetId.value) {
+      activeResource.value = {
+        ...activeResource.value,
+        updateDate: now
+      }
+      const idx = resources.value.findIndex(r => r.id === uploadTargetId.value)
+      if (idx >= 0) resources.value[idx] = activeResource.value
+    }
     // Refresh the resource to show new file
     await refreshActiveResource()
   } catch (e) {
@@ -866,7 +890,7 @@ onMounted(() => {
                     <div class="flex items-center gap-3 text-[11px] text-slate-400">
                       <span><i class="fa-regular fa-clock mr-1"></i>{{ formatDate(item.updateDate) }}</span>
                       <span class="flex items-center gap-1">
-                        <i class="fa-regular fa-folder"></i>{{ item.files?.length || 0 }} 文件
+                        <i class="fa-regular fa-folder"></i>{{ countFiles(item.files) }} 文件
                       </span>
                     </div>
                   </div>
@@ -970,7 +994,8 @@ onMounted(() => {
               >
                 {{ activeResource.description }}
               </p>
-              <div class="mt-2 text-xs text-slate-400">更新于: {{ formatDate(activeResource.updateDate) }}</div>
+              <div class="mt-2 text-xs text-slate-400">创建: {{ formatDate(activeResource.createDate) }}</div>
+              <div class="text-xs text-slate-400">更新: {{ formatDate(activeResource.updateDate) }}</div>
             </div>
 
             <!-- 目录树 -->

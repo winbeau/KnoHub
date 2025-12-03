@@ -15,6 +15,7 @@ export interface Resource {
   description: string
   tag?: 'New' | 'Hot' | 'Rec'
   updateDate: string
+  createDate?: string
   files: FileItem[]
 }
 

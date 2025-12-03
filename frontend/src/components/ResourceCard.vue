@@ -27,6 +27,15 @@ const fileCount = computed(() => {
   if (props.data.files) countRecursive(props.data.files)
   return count
 })
+
+const formatDate = (value?: string) => {
+  if (!value) return '未知'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '未知'
+  const month = `${d.getMonth() + 1}`.padStart(2, '0')
+  const day = `${d.getDate()}`.padStart(2, '0')
+  return `${d.getFullYear()}-${month}-${day}`
+}
 </script>
 
 <template>
@@ -58,6 +67,9 @@ const fileCount = computed(() => {
           </span>
         </div>
         <span class="text-[10px] text-slate-400">{{ data.updateDate }}</span>
+      </div>
+      <div class="text-[10px] text-slate-400 mb-1">
+        创建: {{ formatDate(data.createDate) }}
       </div>
       <h3
         class="text-lg font-bold text-slate-800 mb-3 leading-tight group-hover:text-sky-600 transition-colors line-clamp-2"
