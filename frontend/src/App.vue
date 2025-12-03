@@ -667,7 +667,7 @@ onMounted(() => {
             </div>
           </div>
           <!-- 搜索框 -->
-          <div class="flex items-center" v-if="!activeResource && currentTab !== 'home'">
+          <div class="hidden sm:flex items-center" v-if="!activeResource && currentTab !== 'home'">
             <div class="relative">
               <i
                 class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-sky-300 text-xs"
@@ -683,6 +683,41 @@ onMounted(() => {
         </div>
       </div>
     </header>
+
+    <!-- 移动端导航与搜索 -->
+    <div
+      class="sm:hidden sticky top-14 z-30 bg-white border-b border-sky-100 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+    >
+      <div class="max-w-7xl mx-auto px-4 py-2 space-y-2">
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            @click="switchTab(tab.id)"
+            class="px-3 py-2 rounded-lg flex items-center gap-1 text-xs font-medium border transition"
+            :class="[
+              currentTab === tab.id && !activeResource
+                ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-sm'
+                : 'bg-slate-50 text-slate-500 border-transparent hover:border-slate-200'
+            ]"
+          >
+            <i :class="tab.icon"></i>
+            <span>{{ tab.name }}</span>
+          </button>
+        </div>
+        <div v-if="!activeResource && currentTab !== 'home'" class="relative">
+          <i
+            class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sky-300 text-xs"
+          ></i>
+          <input
+            type="text"
+            placeholder="搜索..."
+            v-model="searchQuery"
+            class="w-full pl-8 pr-4 py-2 border border-sky-100 rounded-lg text-xs focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all bg-sky-50 focus:bg-white text-sky-800 placeholder-sky-300"
+          />
+        </div>
+      </div>
+    </div>
 
     <!-- 主内容区域 -->
     <main class="flex-grow overflow-hidden relative bg-slate-50">
@@ -875,17 +910,17 @@ onMounted(() => {
       <div v-else class="h-full flex flex-col bg-white">
         <!-- 详情页头部工具栏 -->
         <div
-          class="h-12 border-b border-sky-100 flex items-center justify-between px-4 bg-sky-50/30 flex-shrink-0"
+          class="min-h-[56px] border-b border-sky-100 flex flex-wrap items-start sm:items-center justify-between gap-2 px-3 sm:px-4 bg-sky-50/30 flex-shrink-0"
         >
-          <div class="flex items-center gap-3 overflow-hidden">
+          <div class="flex items-center gap-2 sm:gap-3 overflow-hidden">
             <button
               @click="exitDetailView"
               class="text-slate-500 hover:text-sky-600 transition flex items-center gap-1 text-sm font-medium"
             >
               <i class="fa-solid fa-arrow-left"></i> 返回
             </button>
-            <div class="h-4 w-px bg-slate-300"></div>
-            <span class="font-bold text-slate-800 truncate text-sm sm:text-base">
+            <div class="h-4 w-px bg-slate-300 hidden sm:block"></div>
+            <span class="font-bold text-slate-800 truncate text-sm sm:text-base leading-tight">
               {{ activeResource.title }}
             </span>
             <span
@@ -898,7 +933,7 @@ onMounted(() => {
               {{ activeResource.tag }}
             </span>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center flex-wrap gap-2 justify-end sm:justify-start">
             <button
               @click="activeResource && handleDeleteResource(activeResource)"
               class="text-rose-600 bg-rose-50 border border-rose-200 text-xs px-3 py-1.5 rounded hover:bg-rose-100 transition flex items-center gap-1 shadow-sm"
@@ -921,10 +956,10 @@ onMounted(() => {
         </div>
 
         <!-- 详情页主体: 左右分栏 -->
-        <div class="flex-grow flex overflow-hidden">
+        <div class="flex-grow flex flex-col lg:flex-row overflow-hidden">
           <!-- 左侧边栏 -->
           <div
-            class="w-full sm:w-1/3 md:w-1/4 lg:w-1/5 border-r border-slate-100 bg-slate-50/50 flex flex-col min-w-[220px]"
+            class="w-full lg:w-1/3 xl:w-1/4 border-r border-slate-100 bg-slate-50/50 flex flex-col lg:min-w-[240px]"
           >
             <!-- 资源简介 -->
             <div class="p-4 border-b border-slate-100 bg-white flex-shrink-0">
@@ -935,11 +970,11 @@ onMounted(() => {
               >
                 {{ activeResource.description }}
               </p>
-              <div class="mt-2 text-xs text-slate-400">更新于: {{ activeResource.updateDate }}</div>
+              <div class="mt-2 text-xs text-slate-400">更新于: {{ formatDate(activeResource.updateDate) }}</div>
             </div>
 
             <!-- 目录树 -->
-            <div class="flex-grow overflow-y-auto p-2 custom-scrollbar">
+            <div class="flex-grow overflow-y-auto p-2 custom-scrollbar max-h-[48vh] lg:max-h-none">
               <div class="text-xs font-bold text-slate-500 mb-2 px-2 uppercase tracking-wider">
                 资料目录
               </div>
@@ -969,11 +1004,11 @@ onMounted(() => {
 
           <!-- 右侧主区域 -->
           <div
-            class="hidden sm:flex flex-grow bg-slate-50 flex-col relative w-2/3 md:w-3/4 lg:w-4/5"
+            class="flex flex-grow bg-slate-50 flex-col relative w-full lg:w-2/3 xl:w-3/4"
           >
             <!-- 右侧顶部信息栏 -->
             <div
-              class="h-10 bg-white border-b border-slate-100 flex items-center justify-between px-2 shadow-sm flex-shrink-0 z-10"
+              class="min-h-10 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 px-2 sm:px-3 shadow-sm flex-shrink-0 z-10"
             >
               <div class="text-xs text-slate-500 font-medium flex items-center gap-2">
                 <i class="fa-solid fa-eye text-sky-500"></i>
@@ -983,9 +1018,9 @@ onMounted(() => {
               <!-- 文件信息 -->
               <div
                 v-if="currentPreviewFile"
-                class="flex items-center gap-3 text-xs text-slate-500"
+                class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500 justify-end sm:justify-start"
               >
-                <span class="truncate max-w-[220px] sm:max-w-[320px]">{{ currentPreviewFile.name }}</span>
+                <span class="truncate max-w-[200px] sm:max-w-[320px] font-medium text-slate-700">{{ currentPreviewFile.name }}</span>
                 <template v-if="isZoomablePreview(currentPreviewFile.type)">
                   <div class="h-4 w-px bg-slate-200"></div>
                   <div class="flex items-center gap-1">
@@ -1054,7 +1089,7 @@ onMounted(() => {
 
             <!-- 内容区：文件预览 -->
             <div
-              class="flex-grow overflow-auto flex items-start justify-center p-4 custom-scrollbar"
+              class="flex-grow overflow-auto flex items-start justify-center p-3 sm:p-4 custom-scrollbar"
             >
               <div v-if="!currentPreviewFile" class="text-center text-slate-400">
                 <i class="fa-solid fa-eye text-4xl mb-3 text-slate-200"></i>
@@ -1109,15 +1144,6 @@ onMounted(() => {
               </template>
             </div>
 
-          </div>
-
-          <!-- 移动端覆盖层 -->
-          <div
-            class="sm:hidden flex-grow bg-white flex flex-col items-center justify-center p-6 text-center"
-            v-if="!currentPreviewFile"
-          >
-            <p class="text-slate-400 text-sm">点击左侧目录查看文件</p>
-            <p class="text-slate-300 text-xs mt-2">移动端暂不支持 AI 侧边栏</p>
           </div>
         </div>
       </div>

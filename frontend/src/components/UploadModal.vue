@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { Resource, FileItem } from '../types'
 
 const props = defineProps<{
@@ -28,6 +28,57 @@ const targetFolderId = ref<number | null>(null)
 const uploadState = ref<'idle' | 'uploading' | 'success' | 'error'>('idle')
 const uploadProgress = ref(0)
 const errorMessage = ref('')
+
+// 上传来源与设备信息
+type UploadSourceKey = 'default' | 'files' | 'album' | 'qq' | 'wechat'
+
+const pickerPresets: Record<UploadSourceKey, { accept: string }> = {
+  default: {
+    accept: '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.zip,.rar,.txt,.md,.vhd,.json,.html,.htm,.csv,.xls,.xlsx,.mp4,.mov,.avi,.mkv'
+  },
+  files: { accept: '*/*' },
+  album: { accept: 'image/*,video/*' },
+  qq: { accept: '.zip,.rar,.7z,.json,.txt,.db,.bak,.html,.htm,.xls,.xlsx,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.heic,.mp4,.mov' },
+  wechat: { accept: '.zip,.rar,.7z,.json,.txt,.html,.htm,.xls,.xlsx,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.heic,.mp4,.mov' }
+}
+
+const activeSource = ref<UploadSourceKey>('default')
+const inputAccept = ref(pickerPresets.default.accept)
+const isMobile = ref(false)
+
+const mobileSourceOptions: { key: UploadSourceKey; label: string; desc: string; icon: string }[] = [
+  { key: 'wechat', label: '微信聊天记录文件', desc: '导出聊天中的文件/图片/视频 (zip/json/html 等)', icon: 'fa-brands fa-weixin' },
+  { key: 'qq', label: 'QQ 聊天记录文件', desc: '上传 QQ 备份中的附件/图片/视频 (zip/db/txt 等)', icon: 'fa-brands fa-qq' },
+  { key: 'album', label: '相册上传', desc: '直接从手机相册选择图片或视频', icon: 'fa-solid fa-image' },
+  { key: 'files', label: '文件管理器', desc: '浏览本地或网盘文件，支持多选', icon: 'fa-solid fa-folder-open' }
+]
+
+const syncIsMobile = () => {
+  if (typeof window === 'undefined') return
+  isMobile.value = window.innerWidth < 768
+}
+
+const applyPickerPreset = (key: UploadSourceKey) => {
+  const preset = pickerPresets[key] || pickerPresets.default
+  activeSource.value = key
+  inputAccept.value = preset.accept
+}
+
+const openFilePicker = (key: UploadSourceKey) => {
+  applyPickerPreset(key)
+  nextTick(() => {
+    fileInputRef.value?.click()
+  })
+}
+
+onMounted(() => {
+  syncIsMobile()
+  window.addEventListener('resize', syncIsMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncIsMobile)
+})
 
 // 递归获取所有文件夹（包括嵌套）
 const getAllFolders = (files: FileItem[], prefix = ''): { id: number; name: string; path: string }[] => {
@@ -77,6 +128,9 @@ watch(() => props.visible, (newVal) => {
     uploadState.value = 'idle'
     uploadProgress.value = 0
     errorMessage.value = ''
+    activeSource.value = 'default'
+    applyPickerPreset('default')
+    syncIsMobile()
   }
 })
 
@@ -115,7 +169,7 @@ const triggerFileDialog = (e: MouseEvent) => {
   const target = e.target as HTMLElement
   // 如果点在重命名输入区域，不触发文件选择
   if (target.closest('.rename-fields')) return
-  fileInputRef.value?.click()
+  openFilePicker(isMobile.value ? 'files' : 'default')
 }
 
 // 拖拽文件
@@ -200,7 +254,7 @@ defineExpose({
       @click.self="closeModal"
     >
       <div
-        class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all"
+        class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all max-h-[90vh] overflow-y-auto"
         @click.stop
       >
         <!-- 头部 -->
@@ -222,10 +276,38 @@ defineExpose({
           上传至: <span class="text-sky-600 font-medium">{{ targetTitle }}</span>
         </p>
 
+        <!-- 移动端快捷入口 -->
+        <div
+          v-if="isMobile && (uploadState === 'idle' || uploadState === 'error')"
+          class="mb-4 space-y-2"
+        >
+          <div class="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+            <i class="fa-solid fa-mobile-screen-button text-sky-500"></i>
+            手机快捷上传
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              v-for="option in mobileSourceOptions"
+              :key="option.key"
+              @click.stop="openFilePicker(option.key)"
+              class="p-3 rounded-lg border text-left bg-slate-50 hover:bg-white transition shadow-sm flex gap-2 items-start"
+              :class="activeSource === option.key ? 'border-sky-200 ring-1 ring-sky-200' : 'border-slate-200'"
+            >
+              <div class="w-9 h-9 rounded-full bg-white flex items-center justify-center text-sky-500 border border-slate-200">
+                <i :class="option.icon"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-semibold text-slate-800 mb-0.5">{{ option.label }}</div>
+                <p class="text-[11px] text-slate-500 leading-snug truncate">{{ option.desc }}</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <!-- 文件选择/上传区域 -->
         <div
           v-if="uploadState === 'idle' || uploadState === 'error'"
-          class="border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer relative"
+          class="border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-all cursor-pointer relative"
           :class="pendingFiles.length ? 'border-sky-300 bg-sky-50/50' : 'border-slate-200 hover:border-sky-300 hover:bg-sky-50/30'"
           @dragover.prevent
           @drop.prevent="handleFileDrop"
@@ -237,7 +319,7 @@ defineExpose({
               <i class="fa-solid fa-cloud-arrow-up text-2xl text-sky-500"></i>
             </div>
             <p class="text-sm text-slate-600 font-medium mb-1">点击或拖拽文件到此处（可多选）</p>
-            <p class="text-xs text-slate-400">支持 jpg, png, pdf, doc, zip 等格式</p>
+            <p class="text-xs text-slate-400">支持图片/文档/压缩包，包含 QQ/微信聊天记录中的附件文件</p>
           </div>
 
           <!-- 已选择文件（缓存中） -->
@@ -344,7 +426,7 @@ defineExpose({
             type="file"
             class="hidden"
             multiple
-            accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.zip,.rar,.txt,.md,.vhd"
+            :accept="inputAccept"
             @change="handleFileSelect"
           />
           <button

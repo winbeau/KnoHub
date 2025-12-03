@@ -97,3 +97,13 @@
 .delay-150 {
   animation-delay: 150ms;
 }
+
+/* 隐藏滚动条用于移动端横向标签 */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
