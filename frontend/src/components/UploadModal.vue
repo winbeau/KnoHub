@@ -53,6 +53,21 @@ const mobileSourceOptions: { key: UploadSourceKey; label: string; desc: string; 
   { key: 'files', label: '文件管理器', desc: '浏览本地或网盘文件，支持多选', icon: 'fa-solid fa-folder-open' }
 ]
 
+const modalWidthClass = computed(() => {
+  const count = pendingFiles.value.length
+  if (count > 6) return 'sm:max-w-3xl lg:max-w-4xl'
+  if (count > 3) return 'sm:max-w-2xl lg:max-w-3xl'
+  if (count > 1) return 'sm:max-w-xl lg:max-w-2xl'
+  return 'sm:max-w-md'
+})
+
+const pendingGridClass = computed(() => {
+  const count = pendingFiles.value.length
+  if (count === 1) return 'grid grid-cols-1 justify-items-center gap-2'
+  if (count === 2) return 'grid grid-cols-1 sm:grid-cols-2 gap-2 justify-items-stretch'
+  return 'grid grid-cols-1 md:grid-cols-2 gap-2'
+})
+
 const syncIsMobile = () => {
   if (typeof window === 'undefined') return
   isMobile.value = window.innerWidth < 768
@@ -250,26 +265,28 @@ defineExpose({
   <Teleport to="body">
     <div
       v-if="visible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      class="fixed inset-0 z-50 overflow-y-auto bg-black/40"
       @click.self="closeModal"
     >
-      <div
-        class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all max-h-[90vh] overflow-y-auto"
-        @click.stop
-      >
-        <!-- 头部 -->
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-slate-800">
-            <i class="fa-solid fa-cloud-arrow-up text-sky-500 mr-2"></i>
-            上传资料
-          </h3>
-          <button
-            @click="closeModal"
-            class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
-          >
-            <i class="fa-solid fa-xmark text-lg"></i>
-          </button>
-        </div>
+      <div class="flex min-h-full items-start justify-center px-4 py-8">
+        <div
+          class="bg-white rounded-xl shadow-2xl w-full p-6 transform transition-all"
+          :class="modalWidthClass"
+          @click.stop
+        >
+          <!-- 头部 -->
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-slate-800">
+              <i class="fa-solid fa-cloud-arrow-up text-sky-500 mr-2"></i>
+              上传资料
+            </h3>
+            <button
+              @click="closeModal"
+              class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+            >
+              <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+          </div>
 
         <!-- 目标信息 -->
         <p class="text-sm text-slate-500 mb-4">
@@ -323,40 +340,46 @@ defineExpose({
           </div>
 
           <!-- 已选择文件（缓存中） -->
-          <div v-else class="space-y-3 text-left">
+          <div v-else class="text-left space-y-3">
             <p class="text-xs text-slate-500 font-medium">重命名后再上传：</p>
-            <div
-              v-for="(item, idx) in pendingFiles"
-              :key="item.file.name + idx"
-              class="flex items-start gap-3 p-3 bg-white/80 rounded-lg border border-slate-100"
-            >
-              <div class="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <i class="fa-solid fa-file-lines"></i>
-              </div>
-              <div class="flex-1 min-w-0 space-y-1 rename-fields">
-                <div class="flex items-center gap-2">
-                  <input
-                    v-model="item.baseName"
-                    type="text"
-                    placeholder="文件名"
-                    class="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none text-sm"
-                  />
-                  <span
-                    v-if="item.extension"
-                    class="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs text-slate-500"
-                  >
-                    .{{ item.extension }}
-                  </span>
-                </div>
-                <div class="text-xs text-slate-400">{{ formatSize(item.file.size) }}</div>
-              </div>
-              <button
-                class="text-slate-400 hover:text-red-500 transition"
-                title="移除"
-                @click.stop="removeFile(idx)"
+            <div class="pr-1">
+              <div
+                :class="pendingGridClass"
               >
-                <i class="fa-solid fa-xmark"></i>
-              </button>
+                <div
+                  v-for="(item, idx) in pendingFiles"
+                  :key="item.file.name + idx"
+                  class="flex items-start gap-3 p-3 bg-white/80 rounded-lg border border-slate-100 min-w-[240px]"
+                >
+                  <div class="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <i class="fa-solid fa-file-lines"></i>
+                  </div>
+                  <div class="flex-1 min-w-0 space-y-1 rename-fields">
+                    <div class="flex items-center gap-2">
+                      <input
+                        v-model="item.baseName"
+                        type="text"
+                        placeholder="文件名"
+                        class="flex-1 min-w-0 w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none text-sm"
+                      />
+                      <span
+                        v-if="item.extension"
+                        class="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs text-slate-500"
+                      >
+                        .{{ item.extension }}
+                      </span>
+                    </div>
+                    <div class="text-xs text-slate-400">{{ formatSize(item.file.size) }}</div>
+                  </div>
+                  <button
+                    class="text-slate-400 hover:text-red-500 transition"
+                    title="移除"
+                    @click.stop="removeFile(idx)"
+                  >
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="text-xs text-slate-500">
               共 {{ pendingFiles.length }} 个文件 · {{ formatSize(totalSize) }}
@@ -452,6 +475,7 @@ defineExpose({
           >
             完成
           </button>
+        </div>
         </div>
       </div>
     </div>
