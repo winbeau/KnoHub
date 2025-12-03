@@ -956,7 +956,7 @@ onMounted(() => {
         </div>
 
         <!-- 详情页主体: 左右分栏 -->
-        <div class="flex-grow flex flex-col lg:flex-row overflow-hidden">
+        <div class="flex-grow flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden overflow-x-hidden">
           <!-- 左侧边栏 -->
           <div
             class="w-full lg:w-1/3 xl:w-1/4 border-r border-slate-100 bg-slate-50/50 flex flex-col lg:min-w-[240px]"

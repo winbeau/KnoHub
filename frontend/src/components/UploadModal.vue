@@ -30,16 +30,14 @@ const uploadProgress = ref(0)
 const errorMessage = ref('')
 
 // 上传来源与设备信息
-type UploadSourceKey = 'default' | 'files' | 'album' | 'qq' | 'wechat'
+type UploadSourceKey = 'default' | 'files' | 'album'
 
 const pickerPresets: Record<UploadSourceKey, { accept: string }> = {
   default: {
     accept: '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.zip,.rar,.txt,.md,.vhd,.json,.html,.htm,.csv,.xls,.xlsx,.mp4,.mov,.avi,.mkv'
   },
-  files: { accept: '*/*' },
-  album: { accept: 'image/*,video/*' },
-  qq: { accept: '.zip,.rar,.7z,.json,.txt,.db,.bak,.html,.htm,.xls,.xlsx,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.heic,.mp4,.mov' },
-  wechat: { accept: '.zip,.rar,.7z,.json,.txt,.html,.htm,.xls,.xlsx,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.heic,.mp4,.mov' }
+  files: { accept: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.txt,.md,.json,.csv,.html,.htm,.mp4,.mov,.avi,.mkv,.vhd' },
+  album: { accept: 'image/*,video/*' }
 }
 
 const activeSource = ref<UploadSourceKey>('default')
@@ -47,8 +45,6 @@ const inputAccept = ref(pickerPresets.default.accept)
 const isMobile = ref(false)
 
 const mobileSourceOptions: { key: UploadSourceKey; label: string; desc: string; icon: string }[] = [
-  { key: 'wechat', label: '微信聊天记录文件', desc: '导出聊天中的文件/图片/视频 (zip/json/html 等)', icon: 'fa-brands fa-weixin' },
-  { key: 'qq', label: 'QQ 聊天记录文件', desc: '上传 QQ 备份中的附件/图片/视频 (zip/db/txt 等)', icon: 'fa-brands fa-qq' },
   { key: 'album', label: '相册上传', desc: '直接从手机相册选择图片或视频', icon: 'fa-solid fa-image' },
   { key: 'files', label: '文件管理器', desc: '浏览本地或网盘文件，支持多选', icon: 'fa-solid fa-folder-open' }
 ]
@@ -79,7 +75,11 @@ const applyPickerPreset = (key: UploadSourceKey) => {
   inputAccept.value = preset.accept
 }
 
-const openFilePicker = (key: UploadSourceKey) => {
+const openFilePicker = async (key: UploadSourceKey) => {
+  if (key === 'files') {
+    const opened = await tryNativeFilePicker()
+    if (opened) return
+  }
   applyPickerPreset(key)
   nextTick(() => {
     fileInputRef.value?.click()
@@ -143,9 +143,10 @@ watch(() => props.visible, (newVal) => {
     uploadState.value = 'idle'
     uploadProgress.value = 0
     errorMessage.value = ''
-    activeSource.value = 'default'
-    applyPickerPreset('default')
     syncIsMobile()
+    const initSource: UploadSourceKey = isMobile.value ? 'files' : 'default'
+    activeSource.value = initSource
+    applyPickerPreset(initSource)
   }
 })
 
@@ -169,6 +170,42 @@ const addFiles = (files: File[]) => {
 }
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const buildPickerTypes = (accept: string) => {
+  const extensions = accept
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => (x.startsWith('.') ? x : `.${x}`))
+  return [
+    {
+      description: '支持格式',
+      accept: {
+        'application/*': extensions
+      }
+    }
+  ]
+}
+
+const tryNativeFilePicker = async () => {
+  const fsWindow = window as any
+  if (!isMobile.value || typeof fsWindow.showOpenFilePicker !== 'function') return false
+  try {
+    const handles: any[] = await fsWindow.showOpenFilePicker({
+      multiple: true,
+      types: buildPickerTypes(pickerPresets.files.accept)
+    })
+    const files: File[] = await Promise.all(handles.map((h) => h.getFile()))
+    if (files.length) addFiles(files)
+    return true
+  } catch (err) {
+    const isAbort = err instanceof DOMException && err.name === 'AbortError'
+    if (!isAbort) {
+      errorMessage.value = '无法打开文件管理器，请重试或手动选择文件'
+    }
+    return false
+  }
+}
 
 // 选择文件
 const handleFileSelect = (e: Event) => {
@@ -336,7 +373,7 @@ defineExpose({
               <i class="fa-solid fa-cloud-arrow-up text-2xl text-sky-500"></i>
             </div>
             <p class="text-sm text-slate-600 font-medium mb-1">点击或拖拽文件到此处（可多选）</p>
-            <p class="text-xs text-slate-400">支持图片/文档/压缩包，包含 QQ/微信聊天记录中的附件文件</p>
+            <p class="text-xs text-slate-400">支持图片/文档/压缩包等常见格式</p>
           </div>
 
           <!-- 已选择文件（缓存中） -->
