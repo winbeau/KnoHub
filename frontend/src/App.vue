@@ -10,9 +10,11 @@ import DocPreview from './components/DocPreview.vue'
 import PdfPreview from './components/PdfPreview.vue'
 import ImagePreview from './components/ImagePreview.vue'
 import CodePreview from './components/CodePreview.vue'
+import CircPreview from './components/CircPreview.vue'
 import knoHubLogo from './assets/knohub.svg'
 import { tabs } from './data'
 import { resourceApi, fileApi, metricsApi, API_ORIGIN } from './api'
+import { LOGISIM_PREVIEW_PREFIX } from './config/env'
 import type { Resource, FileItem } from './types'
 
 // --- State ---
@@ -125,6 +127,7 @@ const mapFiles = (files: any[]): FileItem[] => {
     type: f.type,
     size: f.size,
     url: f.url,
+    previewUrl: f.previewUrl || `${LOGISIM_PREVIEW_PREFIX}/${f.id}/preview`,
     children: f.children ? mapFiles(f.children) : undefined
   }))
 }
@@ -230,6 +233,7 @@ const getFileIcon = (type?: string) => {
   if (type === 'pdf') return 'fa-solid fa-file-pdf'
   if (type && ['doc', 'docx'].includes(type)) return 'fa-solid fa-file-word'
   if (type && type.toLowerCase() === 'vhd') return 'fa-solid fa-file-code'
+  if (type && type.toLowerCase() === 'circ') return 'fa-solid fa-microchip'
   return 'fa-solid fa-file'
 }
 
@@ -237,6 +241,7 @@ const isDocFile = (type?: string) => type && ['doc', 'docx'].includes(type.toLow
 const isPdfFile = (type?: string) => type && type.toLowerCase() === 'pdf'
 const isZoomablePreview = (type?: string) => isDocFile(type) || isPdfFile(type) || isImage(type)
 const isVhdFile = (type?: string) => type && type.toLowerCase() === 'vhd'
+const isCircFile = (type?: string) => type && type.toLowerCase() === 'circ'
 const isLegacyDocFile = (type?: string) => type && type.toLowerCase() === 'doc'
 const resolveFileUrl = (url?: string | null) => {
   if (!url) return ''
@@ -1149,6 +1154,12 @@ onMounted(() => {
                   v-else-if="isVhdFile(currentPreviewFile.type)"
                   :key="currentPreviewFile.id"
                   :url="resolveFileUrl(currentPreviewFile.url)"
+                  :file-name="currentPreviewFile.name"
+                />
+                <CircPreview
+                  v-else-if="isCircFile(currentPreviewFile.type)"
+                  :key="currentPreviewFile.id"
+                  :preview-url="resolveFileUrl(currentPreviewFile.previewUrl)"
                   :file-name="currentPreviewFile.name"
                 />
                 <div v-else class="text-center">

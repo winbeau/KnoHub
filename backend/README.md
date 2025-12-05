@@ -8,6 +8,8 @@ Spring Boot 后端服务，为课程资料共享平台提供 API 支持。
 - **软删除**：删除文件/文件夹时使用序号标记，确保同名文件重新上传不报错
 - **文件夹管理**：创建、删除文件夹（支持嵌套）
 - **资源管理**：课程资料的 CRUD 操作
+- **Logisim 预览**：上传 `.circ` 后可调用 Logisim jar 渲染预览图（需要手动配置 jar 与命令）
+  - 后端通过内置无界面渲染（基于 `logisim-evolution.jar`），需先下载 jar 到 `backend/logisim/logisim-evolution.jar`（见下）
 
 ## API 端点
 
@@ -83,6 +85,22 @@ spring:
 
 file:
   upload-dir: ./uploads  # 文件存储目录
+
+# Logisim 预览配置
+logisim:
+  enabled: true
+  # 默认指向 backend/logisim/logisim-evolution.jar（随仓库目录运行）
+  jar-path: ./logisim/logisim-evolution.jar
+  # 默认使用 command-template，如果留空会尝试 "java -jar <jar> -export <output> <input>"
+  # 下面示例适用于 logisim-evolution 的 image 模式（可按需调整）
+  # command-template: "java -jar {{jar}} -tty image {{input}} {{output}} 2"
+  output-format: png
+  timeout-seconds: 20
+
+# 安装 Logisim（示例）
+cd ..
+./scripts/install-logisim.sh   # 下载到 backend/logisim/logisim-evolution.jar（系统依赖使用此文件，默认 3.8.0 兼容 JDK17）
+export LOGISIM_JAR_PATH=$(pwd)/backend/logisim/logisim-evolution.jar
 ```
 
 ## 数据库

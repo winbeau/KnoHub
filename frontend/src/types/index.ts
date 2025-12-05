@@ -5,6 +5,7 @@ export interface FileItem {
   type?: string
   size?: string
   url?: string
+  previewUrl?: string
   children?: FileItem[]
 }
 

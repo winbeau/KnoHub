@@ -5,6 +5,7 @@ import com.knohub.backend.model.FileItem;
 import com.knohub.backend.model.Resource;
 import com.knohub.backend.repository.FileItemRepository;
 import com.knohub.backend.repository.ResourceRepository;
+import com.knohub.backend.config.LogisimProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,8 @@ public class FileService {
 
     private final FileItemRepository fileItemRepository;
     private final ResourceRepository resourceRepository;
+    private final LogisimRenderService logisimRenderService;
+    private final LogisimProperties logisimProperties;
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
@@ -259,6 +262,10 @@ public class FileService {
             } catch (IOException e) {
                 log.warn("Failed to rename physical file: {}", e.getMessage());
             }
+
+            // Drop preview reference for deleted files
+            item.setPreviewPath(null);
+            item.setPreviewUrl(null);
         }
 
         fileItemRepository.save(item);
@@ -328,6 +335,8 @@ public class FileService {
 
         fileItem = fileItemRepository.save(fileItem);
         log.info("File uploaded: {} to resource {}, folder {}", originalFilename, resourceId, folderId);
+
+        generatePreviewIfNeeded(fileItem);
 
         return toDTO(fileItem);
     }
@@ -444,6 +453,83 @@ public class FileService {
     }
 
     /**
+     * Locate preview path for a given file. If preview is missing and file is .circ, try to generate on demand.
+     */
+    public Path getPreviewPath(Long fileId) {
+        FileItem item = fileItemRepository.findByIdAndDeletedFalse(fileId)
+                .orElseThrow(() -> new RuntimeException("文件不存在: " + fileId));
+
+        if (item.isFolder()) {
+            throw new RuntimeException("文件夹不支持预览");
+        }
+
+        if (!"circ".equalsIgnoreCase(item.getType())) {
+            throw new RuntimeException("仅 .circ 文件支持预览");
+        }
+
+        if (item.getPreviewPath() == null || item.getPreviewPath().isBlank()) {
+            generatePreviewIfNeeded(item);
+        }
+
+        if (item.getPreviewPath() == null || item.getPreviewPath().isBlank()) {
+            throw new RuntimeException("未找到预览文件");
+        }
+
+        Path previewPath = Paths.get(item.getPreviewPath());
+        if (!Files.exists(previewPath)) {
+            // Try regenerate once
+            generatePreviewIfNeeded(item);
+        }
+
+        previewPath = Paths.get(item.getPreviewPath());
+        if (!Files.exists(previewPath)) {
+            throw new RuntimeException("预览文件不存在或生成失败");
+        }
+
+        return previewPath;
+    }
+
+    /**
+     * Generate a preview for .circ files and persist the preview path/url.
+     */
+    private void generatePreviewIfNeeded(FileItem fileItem) {
+        if (fileItem == null || fileItem.isFolder()) {
+            return;
+        }
+
+        if (fileItem.getType() == null || !"circ".equalsIgnoreCase(fileItem.getType())) {
+            return;
+        }
+
+        if (fileItem.getStoragePath() == null || fileItem.getStoragePath().isBlank()) {
+            log.warn("Cannot render preview for file {}: storage path is empty", fileItem.getId());
+            return;
+        }
+
+        try {
+            Path source = Paths.get(fileItem.getStoragePath());
+            if (!Files.exists(source)) {
+                log.warn("Cannot render preview for file {}: source not found {}", fileItem.getId(), source);
+                return;
+            }
+
+            String format = (logisimProperties.getOutputFormat() == null || logisimProperties.getOutputFormat().isBlank())
+                    ? "png"
+                    : logisimProperties.getOutputFormat();
+            String previewName = source.getFileName().toString() + "." + format;
+            Path target = source.getParent().resolve(previewName);
+
+            logisimRenderService.renderPreview(source, target).ifPresent(path -> {
+                fileItem.setPreviewPath(path.toString());
+                fileItem.setPreviewUrl("/api/files/" + fileItem.getId() + "/preview");
+                fileItemRepository.save(fileItem);
+            });
+        } catch (Exception e) {
+            log.warn("Failed to render preview for {}: {}", fileItem.getId(), e.getMessage());
+        }
+    }
+
+    /**
      * Render a .doc file to HTML (for preview)
      */
     public String renderDocToHtml(Long fileId) {
@@ -518,6 +604,7 @@ public class FileService {
                 .type(item.getType())
                 .size(item.getSize())
                 .url(item.getUrl())
+                .previewUrl(item.getPreviewUrl())
                 .build();
     }
 

@@ -64,6 +64,16 @@ public class FileItem {
     private String storagePath;
 
     /**
+     * Preview file absolute path (e.g. PNG rendered by external tools)
+     */
+    private String previewPath;
+
+    /**
+     * Preview url (served by backend endpoint)
+     */
+    private String previewUrl;
+
+    /**
      * Parent folder (null for root level items)
      */
     @ManyToOne(fetch = FetchType.LAZY)

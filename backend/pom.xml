@@ -19,6 +19,7 @@
 
     <properties>
         <java.version>17</java.version>
+        <logisim.version>3.8.0</logisim.version>
     </properties>
 
     <dependencies>
@@ -77,6 +78,15 @@
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-scratchpad</artifactId>
             <version>5.2.5</version>
+        </dependency>
+
+        <!-- Logisim (local jar) for .circ preview rendering -->
+        <dependency>
+            <groupId>com.cburch</groupId>
+            <artifactId>logisim-evolution</artifactId>
+            <version>${logisim.version}</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/logisim/logisim-evolution.jar</systemPath>
         </dependency>
 
         <!-- Test -->

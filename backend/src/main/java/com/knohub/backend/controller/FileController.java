@@ -169,6 +169,30 @@ public class FileController {
     }
 
     /**
+     * Stream a generated preview (currently supports .circ rendered via Logisim).
+     */
+    @GetMapping("/{fileId}/preview")
+    public ResponseEntity<Resource> getPreview(@PathVariable Long fileId) {
+        try {
+            Path previewPath = fileService.getPreviewPath(fileId);
+            Resource resource = new UrlResource(previewPath.toUri());
+            String contentType = Files.probeContentType(previewPath);
+            if (contentType == null) {
+                contentType = "image/png";
+            }
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + previewPath.getFileName() + "\"")
+                    .body(resource);
+        } catch (IOException e) {
+            log.error("Preview streaming failed", e);
+            return ResponseEntity.internalServerError().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
      * Download a file
      */
     @GetMapping("/{resourceId}/download/{filename}")

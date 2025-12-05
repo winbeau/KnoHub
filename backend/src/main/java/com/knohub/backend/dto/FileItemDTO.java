@@ -22,5 +22,6 @@ public class FileItemDTO {
     private String type;
     private String size;
     private String url;
+    private String previewUrl;
     private List<FileItemDTO> children;
 }

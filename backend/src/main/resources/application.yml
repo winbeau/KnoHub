@@ -8,6 +8,8 @@ server:
 spring:
   application:
     name: knohub-backend
+  main:
+    log-startup-info: false
 
   servlet:
     multipart:
@@ -27,10 +29,41 @@ spring:
     show-sql: false
     database-platform: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
 
+logging:
+  level:
+    org.springframework.boot.autoconfigure: WARN
+    org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener: OFF
+    org.springframework: INFO
+    org.springframework.beans: WARN
+    org.springframework.context.annotation: WARN
+    org.springframework.aop.framework.autoproxy: WARN
+    org.springframework.aop.config: WARN
+    org.springframework.transaction: WARN
+    org.springframework.boot: WARN
+    org.apache.catalina.core.AprLifecycleListener: ERROR
+    org.apache.tomcat.util.net.NioEndpoint: WARN
+    org.apache.tomcat.util.net.NioSelectorPool: WARN
+    org.apache.coyote.http11.Http11NioProtocol: WARN
+    org.hibernate: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.orm.beans: WARN
+
 # File storage configuration
 file:
   upload-dir: ./uploads
   deleted-suffix-format: "_deleted_%d"
+
+# Logisim rendering configuration
+logisim:
+  enabled: true
+  # 默认指向 backend/logisim/logisim-evolution.jar
+  jar-path: ${LOGISIM_JAR_PATH:./logisim/logisim-evolution.jar}
+  # Example template for logisim-evolution:
+  # command-template: "java -jar {{jar}} -tty image {{input}} {{output}} 2"
+  command-template: ${LOGISIM_COMMAND_TEMPLATE:}
+  output-format: png
+  timeout-seconds: 20
 
 cors:
   # Comma-separated additional origin patterns (e.g. https://*.example.com,https://*.trycloudflare.com)
