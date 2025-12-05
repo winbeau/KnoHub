@@ -5,7 +5,9 @@ set -euo pipefail
 # You can override VERSION or DEST via env vars if needed.
 
 VERSION="${VERSION:-3.8.0}"
-DEST="${DEST:-backend/logisim/logisim-evolution.jar}"
+# Always resolve relative to repo root so different working dirs stay consistent.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DEST="${DEST:-${REPO_ROOT}/backend/logisim/logisim-evolution.jar}"
 URL="https://github.com/logisim-evolution/logisim-evolution/releases/download/v${VERSION}/logisim-evolution-${VERSION}-all.jar"
 
 mkdir -p "$(dirname "$DEST")"
