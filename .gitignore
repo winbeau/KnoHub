@@ -15,7 +15,6 @@ frontend/.vite/
 
 # Backend
 backend/target/
-*.jar
 *.war
 *.class
 
