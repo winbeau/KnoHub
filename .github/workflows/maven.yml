@@ -43,3 +43,8 @@ jobs:
       working-directory: ./backend
       run: mvn -B package -DskipTests
 
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: KnoHub-Backend-Jar  # 你给下载包起的名字
+        path: backend-target/*.jar # 告诉 GitHub 去哪里找这个包
