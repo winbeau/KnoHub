@@ -43,6 +43,11 @@ jobs:
       working-directory: ./backend
       run: mvn -B package -DskipTests
 
+    - name: Prepare Artifact Directory
+      run: |
+        mkdir -p backend-target
+        cp backend/target/*.jar backend-target/
+
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
