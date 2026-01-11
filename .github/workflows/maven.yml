@@ -1,11 +1,3 @@
-# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Java CI with Maven
 
 on:
@@ -28,7 +20,7 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    # 关键点 1：如果你的项目依赖本地 JAR，必须先手动安装到运行环境的 Maven 仓库
+    # 1. 安装你项目特有的本地 Logisim 依赖
     - name: Install local Logisim JAR
       run: |
         mvn install:install-file \
@@ -38,18 +30,15 @@ jobs:
           -Dversion=3.8.0 \
           -Dpackaging=jar
 
-    # 关键点 2：指定 working-directory 为 backend
+    # 2. 执行编译打包（在 backend 目录下）
     - name: Build with Maven
       working-directory: ./backend
       run: mvn -B package -DskipTests
 
-    - name: Prepare Artifact Directory
-      run: |
-        mkdir -p backend-target
-        cp backend/target/*.jar backend-target/
-
+    # 3. 直接从 Maven 默认的 target 目录上传
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: KnoHub-Backend-Jar  # 你给下载包起的名字
-        path: backend-target/*.jar # 告诉 GitHub 去哪里找这个包
+        name: KnoHub-Backend-Jar
+        # 路径直接指向 Maven 实际产出文件的位置
+        path: backend/target/*.jar
