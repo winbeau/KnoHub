@@ -84,7 +84,7 @@
         <dependency>
             <groupId>com.cburch</groupId>
             <artifactId>logisim-evolution</artifactId>
-            <version>${logisim.version}</version>
+            <version>3.8.0</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/logisim/logisim-evolution.jar</systemPath>
         </dependency>
