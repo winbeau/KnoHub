@@ -16,29 +16,35 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: maven
-        mvndebug-path: backend/pom.xml
-  
+
+    # 关键点 1：如果你的项目依赖本地 JAR，必须先手动安装到运行环境的 Maven 仓库
+    - name: Install local Logisim JAR
+      run: |
+        mvn install:install-file \
+          -Dfile=backend/logisim/logisim-evolution.jar \
+          -DgroupId=com.cburch \
+          -DartifactId=logisim-evolution \
+          -Dversion=3.8.0 \
+          -Dpackaging=jar
+
+    # 关键点 2：指定 working-directory 为 backend
     - name: Build with Maven
       working-directory: ./backend
-      run: mvn -B package -DskipTests --file pom.xml
+      run: mvn -B package -DskipTests
 
-    # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
+    # 关键点 3：修复报错的插件，添加 directory 参数
     - name: Update dependency graph
       uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
-    
-    - name: Upload Build Artifact
-      uses: actions/upload-artifact@v4
       with:
-        name: knohub-backend-jar
-        path: target/*.jar  # 假设你的 jar 包生成在 target 目录下
+        directory: backend  # 显式告诉它 pom.xml 在这里
